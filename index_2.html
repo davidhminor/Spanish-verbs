@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Spanish Verbs">
+<meta name="theme-color" content="#1D9E75">
+<title>Spanish Verb Flashcards</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f7f7f5;
+    color: #1a1a18;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 16px;
+    padding-top: max(env(safe-area-inset-top), 20px);
+    padding-bottom: max(env(safe-area-inset-bottom), 20px);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1a18; color: #f0ede8; }
+    .card { background: #252522; border-color: #3a3a36; }
+    .btn-nav { background: #252522; color: #f0ede8; border-color: #3a3a36; }
+    .btn-nav:active { background: #333330; }
+    .btn-filter { color: #aaa9a2; border-color: #3a3a36; }
+    .btn-reshuffle { color: #aaa9a2; border-color: #3a3a36; }
+    .prog-track { background: #3a3a36; }
+    .flip-hint { color: #666; }
+    .pronoun { color: #aaa9a2; }
+    .known-btn { color: #aaa9a2; }
+    .meta { color: #aaa9a2; }
+    .swipe-hint { color: #555; }
+    .tag-inf { background: #333330; color: #aaa9a2; border-color: #3a3a36; }
+    .spanish-word { color: #f0ede8; }
+    .english { color: #f0ede8; }
+  }
+
+  .app { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 0; }
+
+  /* Header */
+  header { text-align: center; padding: 12px 0 14px; }
+  header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  header p { font-size: 12px; color: #888; margin-top: 3px; }
+
+  /* Filter bar */
+  .filter-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 14px; }
+  .btn-filter {
+    padding: 6px 14px; border-radius: 99px; font-size: 12px; font-weight: 600;
+    border: 1.5px solid #ccc; background: transparent; color: #888;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+  }
+  .btn-filter.on-present { background: #9FE1CB; color: #04342C; border-color: #1D9E75; }
+  .btn-filter.on-past    { background: #FAC775; color: #3D2000; border-color: #C47E00; }
+  .btn-filter.on-future  { background: #B5D4F4; color: #042C53; border-color: #3A8ADE; }
+  .btn-reshuffle {
+    margin-left: auto; padding: 6px 14px; border-radius: 99px; font-size: 12px;
+    border: 1.5px solid #ccc; background: transparent; color: #888;
+    cursor: pointer; font-family: inherit;
+  }
+
+  /* Progress */
+  .progress-row { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 5px; }
+  .prog-track { height: 3px; background: #ddd; border-radius: 99px; margin-bottom: 18px; }
+  .prog-fill { height: 100%; border-radius: 99px; background: #1D9E75; transition: width 0.3s ease; width: 0%; }
+
+  /* Card */
+  .card-scene { perspective: 1200px; height: 270px; cursor: pointer; margin-bottom: 16px; }
+  .card-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.45s cubic-bezier(0.4,0,0.2,1); }
+  .card-scene.flipped .card-inner { transform: rotateY(180deg); }
+  .card {
+    position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    background: #fff; border: 1.5px solid #e0ddd8; border-radius: 18px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 2rem; gap: 6px;
+  }
+  .card-back { transform: rotateY(180deg); }
+
+  /* Front face */
+  .pronoun { font-size: 18px; color: #888; font-weight: 500; margin-bottom: 2px; }
+  .spanish-word { font-size: 52px; font-weight: 700; color: #000000; letter-spacing: -2px; line-height: 1; }
+  .flip-hint { font-size: 12px; color: #bbb; margin-top: 16px; }
+
+  /* Back face */
+  .english { font-size: 28px; font-weight: 700; color: #000000; text-align: center; line-height: 1.2; }
+  .tags { display: flex; gap: 7px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+  .tag {
+    font-size: 12px; font-weight: 600; padding: 4px 13px;
+    border-radius: 99px; border: 1.5px solid;
+  }
+  /* These colors are fully explicit — no CSS variables, no transparency issues */
+  .tag-present { background: #9FE1CB; color: #04342C; border-color: #1D9E75; }
+  .tag-past    { background: #FAC775; color: #3D2000; border-color: #C47E00; }
+  .tag-future  { background: #B5D4F4; color: #042C53; border-color: #3A8ADE; }
+  .tag-inf     { background: #efefed; color: #555; border-color: #ccc; }
+
+  /* Nav */
+  .nav { display: flex; gap: 8px; margin-bottom: 8px; }
+  .btn-nav {
+    flex: 1; padding: 13px; border-radius: 12px; border: 1.5px solid #ddd;
+    background: #fff; color: #1a1a18; font-size: 15px; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: background 0.1s;
+  }
+  .btn-nav:active { background: #f0ede8; }
+  .btn-next { background: #1D9E75; color: #fff; border-color: #1D9E75; }
+  .btn-next:active { background: #0F6E56; }
+
+  .known-btn {
+    font-size: 13px; color: #888; background: none; border: none;
+    cursor: pointer; padding: 6px; display: block; width: 100%;
+    text-align: center; font-family: inherit; border-radius: 10px;
+    margin-bottom: 4px;
+  }
+  .known-btn.on { color: #1D9E75; font-weight: 700; }
+
+  .meta { text-align: center; font-size: 11px; color: #aaa; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>🇲🇽 Spanish Verb Flashcards</h1>
+    <p id="header-sub">25 verbs · 3 tenses · 5 persons · Mexican Spanish</p>
+  </header>
+
+  <div class="filter-bar">
+    <button class="btn-filter on-present" data-tense="present" onclick="toggleFilter('present', this)">present</button>
+    <button class="btn-filter on-past"    data-tense="past"    onclick="toggleFilter('past', this)">past</button>
+    <button class="btn-filter on-future"  data-tense="future"  onclick="toggleFilter('future', this)">future</button>
+    <button class="btn-reshuffle" onclick="reshuffle()">⟳ shuffle</button>
+  </div>
+
+  <div class="progress-row">
+    <span id="counter">1 / 375</span>
+    <span id="known-count"></span>
+  </div>
+  <div class="prog-track"><div class="prog-fill" id="prog"></div></div>
+
+  <div class="card-scene" id="cardScene" onclick="flip()">
+    <div class="card-inner">
+
+      <div class="card card-front">
+        <div class="pronoun" id="front-pronoun"></div>
+        <div class="spanish-word" id="front-word"></div>
+        <div class="flip-hint">tap to reveal</div>
+      </div>
+
+      <div class="card card-back">
+        <div class="english" id="back-english"></div>
+        <div class="tags" id="back-tags"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="btn-nav" onclick="go(-1)">← prev</button>
+    <button class="btn-nav btn-next" onclick="go(1)">next →</button>
+  </div>
+  <button class="known-btn" id="known-btn" onclick="toggleKnown()">mark as known</button>
+  <div class="meta">swipe left / right to navigate &nbsp;·&nbsp; keyboard: ← → to navigate, F to flip, K to mark known</div>
+
+</div>
+<script>
+// Mexican Spanish: no vosotros — ustedes used for all "you plural"
+const PERSONS = [
+  { es: "yo",          en: "I" },
+  { es: "tú",          en: "you" },
+  { es: "él/ella",     en: "he/she" },
+  { es: "nosotros",    en: "we" },
+  { es: "ustedes",     en: "you all" },
+  { es: "ellos/ellas", en: "they" },
+];
+
+const TENSE_LABEL = { present: "present", past: "preterite (past)", future: "future" };
+const TENSE_TAG   = { present: "tag-present", past: "tag-past", future: "tag-future" };
+
+// Each tense has forms[] (conjugation) and trans[] (English verb only, no pronoun)
+// trans index matches PERSONS index
+const VERBS = [
+  { inf: "ser", en: "to be (permanent)",
+    present: { forms: ["soy","eres","es","somos","son","son"],               trans: ["am","are","is","are","are","are"] },
+    past:    { forms: ["fui","fuiste","fue","fuimos","fueron","fueron"],       trans: ["was","were","was","were","were","were"] },
+    future:  { forms: ["seré","serás","será","seremos","serán","serán"],       trans: ["will be","will be","will be","will be","will be","will be"] } },
+
+  { inf: "estar", en: "to be (temporary)",
+    present: { forms: ["estoy","estás","está","estamos","están","están"],     trans: ["am","are","is","are","are","are"] },
+    past:    { forms: ["estuve","estuviste","estuvo","estuvimos","estuvieron","estuvieron"], trans: ["was","were","was","were","were","were"] },
+    future:  { forms: ["estaré","estarás","estará","estaremos","estarán","estarán"],         trans: ["will be","will be","will be","will be","will be","will be"] } },
+
+  { inf: "tener", en: "to have",
+    present: { forms: ["tengo","tienes","tiene","tenemos","tienen","tienen"],   trans: ["have","have","has","have","have","have"] },
+    past:    { forms: ["tuve","tuviste","tuvo","tuvimos","tuvieron","tuvieron"], trans: ["had","had","had","had","had","had"] },
+    future:  { forms: ["tendré","tendrás","tendrá","tendremos","tendrán","tendrán"], trans: ["will have","will have","will have","will have","will have","will have"] } },
+
+  { inf: "hacer", en: "to do / make",
+    present: { forms: ["hago","haces","hace","hacemos","hacen","hacen"],         trans: ["do","do","does","do","do","do"] },
+    past:    { forms: ["hice","hiciste","hizo","hicimos","hicieron","hicieron"], trans: ["did","did","did","did","did","did"] },
+    future:  { forms: ["haré","harás","hará","haremos","harán","harán"],         trans: ["will do","will do","will do","will do","will do","will do"] } },
+
+  { inf: "poder", en: "to be able to",
+    present: { forms: ["puedo","puedes","puede","podemos","pueden","pueden"],       trans: ["can","can","can","can","can","can"] },
+    past:    { forms: ["pude","pudiste","pudo","pudimos","pudieron","pudieron"],     trans: ["could","could","could","could","could","could"] },
+    future:  { forms: ["podré","podrás","podrá","podremos","podrán","podrán"],       trans: ["will be able to","will be able to","will be able to","will be able to","will be able to","will be able to"] } },
+
+  { inf: "decir", en: "to say / tell",
+    present: { forms: ["digo","dices","dice","decimos","dicen","dicen"],           trans: ["say","say","says","say","say","say"] },
+    past:    { forms: ["dije","dijiste","dijo","dijimos","dijeron","dijeron"],       trans: ["said","said","said","said","said","said"] },
+    future:  { forms: ["diré","dirás","dirá","diremos","dirán","dirán"],             trans: ["will say","will say","will say","will say","will say","will say"] } },
+
+  { inf: "ir", en: "to go",
+    present: { forms: ["voy","vas","va","vamos","van","van"],                     trans: ["go","go","goes","go","go","go"] },
+    past:    { forms: ["fui","fuiste","fue","fuimos","fueron","fueron"],           trans: ["went","went","went","went","went","went"] },
+    future:  { forms: ["iré","irás","irá","iremos","irán","irán"],                 trans: ["will go","will go","will go","will go","will go","will go"] } },
+
+  { inf: "ver", en: "to see",
+    present: { forms: ["veo","ves","ve","vemos","ven","ven"],                     trans: ["see","see","sees","see","see","see"] },
+    past:    { forms: ["vi","viste","vio","vimos","vieron","vieron"],             trans: ["saw","saw","saw","saw","saw","saw"] },
+    future:  { forms: ["veré","verás","verá","veremos","verán","verán"],           trans: ["will see","will see","will see","will see","will see","will see"] } },
+
+  { inf: "dar", en: "to give",
+    present: { forms: ["doy","das","da","damos","dan","dan"],                     trans: ["give","give","gives","give","give","give"] },
+    past:    { forms: ["di","diste","dio","dimos","dieron","dieron"],             trans: ["gave","gave","gave","gave","gave","gave"] },
+    future:  { forms: ["daré","darás","dará","daremos","darán","darán"],           trans: ["will give","will give","will give","will give","will give","will give"] } },
+
+  { inf: "saber", en: "to know (a fact)",
+    present: { forms: ["sé","sabes","sabe","sabemos","saben","saben"],             trans: ["know","know","knows","know","know","know"] },
+    past:    { forms: ["supe","supiste","supo","supimos","supieron","supieron"],   trans: ["knew","knew","knew","knew","knew","knew"] },
+    future:  { forms: ["sabré","sabrás","sabrá","sabremos","sabrán","sabrán"],     trans: ["will know","will know","will know","will know","will know","will know"] } },
+
+  { inf: "querer", en: "to want / love",
+    present: { forms: ["quiero","quieres","quiere","queremos","quieren","quieren"],     trans: ["want","want","wants","want","want","want"] },
+    past:    { forms: ["quise","quisiste","quiso","quisimos","quisieron","quisieron"],   trans: ["wanted","wanted","wanted","wanted","wanted","wanted"] },
+    future:  { forms: ["querré","querrás","querrá","querremos","querrán","querrán"],     trans: ["will want","will want","will want","will want","will want","will want"] } },
+
+  { inf: "llegar", en: "to arrive",
+    present: { forms: ["llego","llegas","llega","llegamos","llegan","llegan"],           trans: ["arrive","arrive","arrives","arrive","arrive","arrive"] },
+    past:    { forms: ["llegué","llegaste","llegó","llegamos","llegaron","llegaron"],     trans: ["arrived","arrived","arrived","arrived","arrived","arrived"] },
+    future:  { forms: ["llegaré","llegarás","llegará","llegaremos","llegarán","llegarán"], trans: ["will arrive","will arrive","will arrive","will arrive","will arrive","will arrive"] } },
+
+  { inf: "pasar", en: "to pass / happen",
+    present: { forms: ["paso","pasas","pasa","pasamos","pasan","pasan"],               trans: ["pass","pass","passes","pass","pass","pass"] },
+    past:    { forms: ["pasé","pasaste","pasó","pasamos","pasaron","pasaron"],         trans: ["passed","passed","passed","passed","passed","passed"] },
+    future:  { forms: ["pasaré","pasarás","pasará","pasaremos","pasarán","pasarán"],   trans: ["will pass","will pass","will pass","will pass","will pass","will pass"] } },
+
+  { inf: "poner", en: "to put / place",
+    present: { forms: ["pongo","pones","pone","ponemos","ponen","ponen"],               trans: ["put","put","puts","put","put","put"] },
+    past:    { forms: ["puse","pusiste","puso","pusimos","pusieron","pusieron"],         trans: ["put","put","put","put","put","put"] },
+    future:  { forms: ["pondré","pondrás","pondrá","pondremos","pondrán","pondrán"],     trans: ["will put","will put","will put","will put","will put","will put"] } },
+
+  { inf: "venir", en: "to come",
+    present: { forms: ["vengo","vienes","viene","venimos","vienen","vienen"],           trans: ["come","come","comes","come","come","come"] },
+    past:    { forms: ["vine","viniste","vino","vinimos","vinieron","vinieron"],         trans: ["came","came","came","came","came","came"] },
+    future:  { forms: ["vendré","vendrás","vendrá","vendremos","vendrán","vendrán"],     trans: ["will come","will come","will come","will come","will come","will come"] } },
+
+  { inf: "pensar", en: "to think",
+    present: { forms: ["pienso","piensas","piensa","pensamos","piensan","piensan"],     trans: ["think","think","thinks","think","think","think"] },
+    past:    { forms: ["pensé","pensaste","pensó","pensamos","pensaron","pensaron"],     trans: ["thought","thought","thought","thought","thought","thought"] },
+    future:  { forms: ["pensaré","pensarás","pensará","pensaremos","pensarán","pensarán"], trans: ["will think","will think","will think","will think","will think","will think"] } },
+
+  { inf: "salir", en: "to leave / go out",
+    present: { forms: ["salgo","sales","sale","salimos","salen","salen"],               trans: ["leave","leave","leaves","leave","leave","leave"] },
+    past:    { forms: ["salí","saliste","salió","salimos","salieron","salieron"],         trans: ["left","left","left","left","left","left"] },
+    future:  { forms: ["saldré","saldrás","saldrá","saldremos","saldrán","saldrán"],     trans: ["will leave","will leave","will leave","will leave","will leave","will leave"] } },
+
+  { inf: "volver", en: "to return",
+    present: { forms: ["vuelvo","vuelves","vuelve","volvemos","vuelven","vuelven"],     trans: ["return","return","returns","return","return","return"] },
+    past:    { forms: ["volví","volviste","volvió","volvimos","volvieron","volvieron"], trans: ["returned","returned","returned","returned","returned","returned"] },
+    future:  { forms: ["volveré","volverás","volverá","volveremos","volverán","volverán"], trans: ["will return","will return","will return","will return","will return","will return"] } },
+
+  { inf: "conocer", en: "to know (a person)",
+    present: { forms: ["conozco","conoces","conoce","conocemos","conocen","conocen"],       trans: ["know","know","knows","know","know","know"] },
+    past:    { forms: ["conocí","conociste","conoció","conocimos","conocieron","conocieron"], trans: ["knew","knew","knew","knew","knew","knew"] },
+    future:  { forms: ["conoceré","conocerás","conocerá","conoceremos","conocerán","conocerán"], trans: ["will know","will know","will know","will know","will know","will know"] } },
+
+  { inf: "vivir", en: "to live",
+    present: { forms: ["vivo","vives","vive","vivimos","viven","viven"],               trans: ["live","live","lives","live","live","live"] },
+    past:    { forms: ["viví","viviste","vivió","vivimos","vivieron","vivieron"],       trans: ["lived","lived","lived","lived","lived","lived"] },
+    future:  { forms: ["viviré","vivirás","vivirá","viviremos","vivirán","vivirán"],   trans: ["will live","will live","will live","will live","will live","will live"] } },
+
+  { inf: "sentir", en: "to feel",
+    present: { forms: ["siento","sientes","siente","sentimos","sienten","sienten"],     trans: ["feel","feel","feels","feel","feel","feel"] },
+    past:    { forms: ["sentí","sentiste","sintió","sentimos","sintieron","sintieron"],   trans: ["felt","felt","felt","felt","felt","felt"] },
+    future:  { forms: ["sentiré","sentirás","sentirá","sentiremos","sentirán","sentirán"], trans: ["will feel","will feel","will feel","will feel","will feel","will feel"] } },
+
+  { inf: "hablar", en: "to speak",
+    present: { forms: ["hablo","hablas","habla","hablamos","hablan","hablan"],           trans: ["speak","speak","speaks","speak","speak","speak"] },
+    past:    { forms: ["hablé","hablaste","habló","hablamos","hablaron","hablaron"],     trans: ["spoke","spoke","spoke","spoke","spoke","spoke"] },
+    future:  { forms: ["hablaré","hablarás","hablará","hablaremos","hablarán","hablarán"], trans: ["will speak","will speak","will speak","will speak","will speak","will speak"] } },
+
+  { inf: "llevar", en: "to carry / wear",
+    present: { forms: ["llevo","llevas","lleva","llevamos","llevan","llevan"],           trans: ["carry","carry","carries","carry","carry","carry"] },
+    past:    { forms: ["llevé","llevaste","llevó","llevamos","llevaron","llevaron"],     trans: ["carried","carried","carried","carried","carried","carried"] },
+    future:  { forms: ["llevaré","llevarás","llevará","llevaremos","llevarán","llevarán"], trans: ["will carry","will carry","will carry","will carry","will carry","will carry"] } },
+
+  { inf: "creer", en: "to believe",
+    present: { forms: ["creo","crees","cree","creemos","creen","creen"],               trans: ["believe","believe","believes","believe","believe","believe"] },
+    past:    { forms: ["creí","creíste","creyó","creímos","creyeron","creyeron"],       trans: ["believed","believed","believed","believed","believed","believed"] },
+    future:  { forms: ["creeré","creerás","creerá","creeremos","creerán","creerán"],   trans: ["will believe","will believe","will believe","will believe","will believe","will believe"] } },
+
+  { inf: "encontrar", en: "to find",
+    present: { forms: ["encuentro","encuentras","encuentra","encontramos","encuentran","encuentran"],     trans: ["find","find","finds","find","find","find"] },
+    past:    { forms: ["encontré","encontraste","encontró","encontramos","encontraron","encontraron"],   trans: ["found","found","found","found","found","found"] },
+    future:  { forms: ["encontraré","encontrarás","encontrará","encontraremos","encontrarán","encontrarán"], trans: ["will find","will find","will find","will find","will find","will find"] } },
+];
+
+// Build the full deck of 375 cards
+let allCards = [];
+VERBS.forEach(v => {
+  ["present","past","future"].forEach(tense => {
+    PERSONS.forEach((person, i) => {
+      allCards.push({
+        word:    v[tense].forms[i],
+        pronoun: person.es,
+        english: `${person.en} ${v[tense].trans[i]}`,
+        tense:   tense,
+        inf:     v.inf,
+      });
+    });
+  });
+});
+
+let deck = [], pos = 0, known = new Set(), flipped = false;
+let activeFilters = new Set(["present","past","future"]);
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function buildAndShuffle() {
+  deck = shuffle(allCards.filter(c => activeFilters.has(c.tense)));
+  pos = 0; known = new Set(); flipped = false;
+  document.getElementById('cardScene').classList.remove('flipped');
+  render();
+}
+
+function render() {
+  if (!deck.length) return;
+  const c = deck[pos];
+  document.getElementById('front-pronoun').textContent = c.pronoun;
+  document.getElementById('front-word').textContent    = c.word;
+  document.getElementById('back-english').textContent  = c.english;
+  document.getElementById('back-tags').innerHTML =
+    `<span class="tag ${TENSE_TAG[c.tense]}">${TENSE_LABEL[c.tense]}</span>` +
+    `<span class="tag tag-inf">${c.inf}</span>`;
+
+  const pct = Math.round(((pos + 1) / deck.length) * 100);
+  document.getElementById('counter').textContent = `${pos + 1} / ${deck.length}`;
+  document.getElementById('prog').style.width    = pct + '%';
+
+  const isKnown = known.has(pos);
+  const kb = document.getElementById('known-btn');
+  kb.textContent = isKnown ? '✓ known — tap to unmark' : 'mark as known';
+  kb.className   = 'known-btn' + (isKnown ? ' on' : '');
+
+  document.getElementById('header-sub').textContent =
+    known.size ? `${known.size} of ${deck.length} known` : '25 verbs · 3 tenses · 5 persons · Mexican Spanish';
+
+  flipped = false;
+  document.getElementById('cardScene').classList.remove('flipped');
+}
+
+function flip()         { flipped = !flipped; document.getElementById('cardScene').classList.toggle('flipped', flipped); }
+function go(dir)        { pos = (pos + dir + deck.length) % deck.length; render(); }
+function toggleKnown()  { if (known.has(pos)) known.delete(pos); else known.add(pos); render(); }
+function reshuffle()    { buildAndShuffle(); }
+
+function toggleFilter(tense, btn) {
+  if (activeFilters.has(tense)) {
+    if (activeFilters.size === 1) return; // keep at least one
+    activeFilters.delete(tense);
+    btn.className = 'btn-filter';
+  } else {
+    activeFilters.add(tense);
+    btn.className = `btn-filter on-${tense}`;
+  }
+  buildAndShuffle();
+}
+
+// Swipe support
+let tx = 0, ty = 0;
+document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx;
+  const dy = e.changedTouches[0].clientY - ty;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+}, { passive: true });
+
+// Keyboard support
+document.addEventListener('keydown', e => {
+  if      (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); }
+  else if (e.key === 'ArrowLeft')                   { e.preventDefault(); go(-1); }
+  else if (e.key === 'f' || e.key === 'Enter')      { e.preventDefault(); flip(); }
+  else if (e.key === 'k')                           { e.preventDefault(); toggleKnown(); }
+});
+
+buildAndShuffle();
+</script>
+</body>
+</html>
